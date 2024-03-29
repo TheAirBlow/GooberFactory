@@ -111,17 +111,19 @@ public static class Discord {
                 $"{repliedTo.Color.R:X2}{repliedTo.Color.G:X2}{repliedTo.Color.B:X2}",
                 repliedTo.Nickname ?? repliedTo.DisplayName);
             await Program.Socket.SendCommand(builder.ToString());
+            await Task.Delay(100);
         }
         
         for (var i = 0; i < split.Count; i++) {
             var builder = new StringBuilder(); var content = new StringBuilder();
             builder.Append($"/gfi-print {Config.Messages.DiscordPrefix} ");
-            if (repliedTo is not null || i != 0) content.Append($"{Config.Messages.Newline} ");
+            if (repliedTo is not null || i != 0) builder.Append($"{Config.Messages.Newline} ");
             content.Append(split[i]); if (message.IsEdited) content.Append($" {Config.Messages.Edited}");
             builder.AppendFormat(Config.Messages.GameMessage,
                 $"{author.Color.R:X2}{author.Color.G:X2}{author.Color.B:X2}",
                 author.Nickname ?? author.DisplayName, content);
             await Program.Socket.SendCommand(builder.ToString());
+            await Task.Delay(100);
         }
     }
 
