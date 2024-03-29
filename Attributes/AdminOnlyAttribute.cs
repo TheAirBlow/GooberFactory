@@ -4,7 +4,7 @@ using DSharpPlus.SlashCommands;
 namespace GooberFactory.Attributes; 
 
 /// <summary>
-/// Checks that the user running this command is an administratir
+/// Checks that the user running this command is an administrator
 /// </summary>
 public class AdminOnlyAttribute : SlashCheckBaseAttribute {
     /// <summary>

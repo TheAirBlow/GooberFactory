@@ -13,5 +13,5 @@ public class UsernameProvider : IAutocompleteProvider {
     /// <param name="ctx">Context</param>
     /// <returns>List of choices</returns>
     public Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
-        => Task.FromResult(Program.Socket!.Players.Select(i => new DiscordAutoCompleteChoice(i, i)));
+        => Task.FromResult(Program.Socket!.Players.Select(i => new DiscordAutoCompleteChoice(i, i)).Take(10));
 }

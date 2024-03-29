@@ -2,7 +2,6 @@ using System.Text;
 using static GooberFactory.Configuration;
 using DSharpPlus;
 using DSharpPlus.Entities;
-using DSharpPlus.EventArgs;
 using DSharpPlus.SlashCommands;
 using DSharpPlus.SlashCommands.EventArgs;
 using GooberFactory.Attributes;
@@ -81,6 +80,12 @@ public static class Discord {
                         "You aren't an administrator!", true);
                     return;
                 case MatchStateAttribute at:
+                    if (at.FailedBecauseNull) {
+                        await e.Context.CreateResponseAsync(
+                            "Slow down, I didn't establish a WebSockets connection yet!", true);
+                        return;
+                    }
+                    
                     var builder = new StringBuilder();
                     builder.Append("The server must be ");
                     builder.Append(at.State.ToString().ToLower());

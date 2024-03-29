@@ -24,8 +24,8 @@ public static class Program {
         Log.Information("Welcome to Goober's Factory v2.0!");
         Config.Save();
         await Discord.Initialize();
-        await ModManager.SyncMods();
         await InitSocket();
+        await ModManager.SyncMods();
         await Task.Delay(-1);
     }
     

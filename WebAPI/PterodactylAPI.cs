@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -13,7 +14,9 @@ public static class PterodactylAPI {
     /// <summary>
     /// Pterodactyl HTTP client
     /// </summary>
-    private static readonly HttpClient _client = new();
+    private static readonly HttpClient _client = new(new HttpClientHandler {
+        UseCookies = false
+    });
 
     /// <summary>
     /// Configures the HTTP client
@@ -136,7 +139,7 @@ public static class PterodactylAPI {
     /// <param name="from">Original name</param>
     /// <param name="to">New name</param>
     public static async Task Rename(string root, string from, string to) {
-        var resp = await _client.PostAsync(
+        var resp = await _client.PutAsync(
             $"/api/client/servers/{Config.Pterodactyl.ServerId}/files/rename",
             JsonContent.Create(new RenameJson {
                 Root = root, Files = [new RenameJson.Entry { From = from, To = to }]
@@ -216,6 +219,9 @@ public static class PterodactylAPI {
             
             [JsonPropertyName("is_file")]
             public bool IsFile { get; set; }
+            
+            [JsonPropertyName("modified_at")]
+            public DateTime ModifiedAt { get; set; }
         }
         
         /// <summary>

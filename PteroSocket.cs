@@ -44,6 +44,21 @@ public class PteroSocket : IDisposable {
     private bool _disposed = true;
 
     /// <summary>
+    /// Lock object
+    /// </summary>
+    private SemaphoreSlim _lock = new(1);
+
+    /// <summary>
+    /// Save next log message
+    /// </summary>
+    private int _wantsMessage;
+
+    /// <summary>
+    /// Log message requested
+    /// </summary>
+    private string _logMessage;
+
+    /// <summary>
     /// Initiates a WebSockets connection
     /// </summary>
     public async Task Connect() {
@@ -68,13 +83,14 @@ public class PteroSocket : IDisposable {
                         await HandleMessage(msg);
                         break;
                     case WebSocketMessageType.Close:
+                        if (Socket.State == WebSocketState.Closed) break;
                         await Socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
                         break;
                 }
             }
             
             Log.Warning("WebSockets connection was remotely closed!");
-        } catch (ObjectDisposedException) {
+        } catch (WebSocketException) {
             Log.Warning("WebSockets connection was disposed!");
         } catch (Exception e) {
             Log.Error("Listener thread crashed: {0}", e);
@@ -135,6 +151,16 @@ public class PteroSocket : IDisposable {
     /// </summary>
     /// <param name="log">Log Line</param>
     private async Task HandleOutput(string log) {
+        switch (_wantsMessage) {
+            case 1:
+                _wantsMessage++;
+                break;
+            case 2:
+                _wantsMessage = 0;
+                _logMessage = log;
+                break;
+        }
+        
         if (log.StartsWith("Unknown command \"gfi-version\".")) {
             await Discord.Send(
                 "**Hey, you forgot to add the Goober's Factory Integration script into your save file!**\n" +
@@ -277,20 +303,42 @@ public class PteroSocket : IDisposable {
     }
 
     /// <summary>
+    /// Synchronous async send
+    /// </summary>
+    /// <param name="str">String</param>
+    /// <param name="wantsMessage">Return next log message</param>
+    private async Task<string?> Send(string str, bool wantsMessage = false) {
+        await _lock.WaitAsync();
+        await Socket.SendAsync(Encoding.UTF8.GetBytes(str), 
+            WebSocketMessageType.Text, true, CancellationToken.None);
+        if (!wantsMessage) {
+            _lock.Release();
+            return null;
+        }
+
+        _wantsMessage = 1;
+        while (_wantsMessage != 0)
+            await Task.Delay(50);
+        _lock.Release();
+        return _logMessage;
+    }
+
+    /// <summary>
     /// Sends an event message
     /// </summary>
     /// <param name="event">Event</param>
-    /// <param name="args">Arguments</param>
-    private async Task SendEvent(string @event, params string[] args)
-        => await Socket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(new EventJson(@event, args)),
-            WebSocketMessageType.Text, true, CancellationToken.None);
-    
+    /// <param name="arg">Argument</param>
+    /// <param name="wantsMessage">Return next log message</param>
+    private async Task<string?> SendEvent(string @event, string arg, bool wantsMessage = false)
+        => await Send(JsonSerializer.Serialize(new EventJson(@event, [arg])), wantsMessage);
+
     /// <summary>
     /// Sends a command to the server
     /// </summary>
     /// <param name="command">Command</param>
-    public async Task SendCommand(string command)
-        => await SendEvent("send command", command);
+    /// <param name="wantsMessage">Return next log message</param>
+    public async Task<string?> SendCommand(string command, bool wantsMessage = false)
+        => await SendEvent("send command", command, wantsMessage);
     
     /// <summary>
     /// Performs a power action
@@ -314,7 +362,7 @@ public class PteroSocket : IDisposable {
     /// Server state
     /// </summary>
     public enum ServerState {
-        Offline, Starting, Running, Stopping
+        Unknown, Offline, Starting, Running, Stopping
     }
     
     /// <summary>

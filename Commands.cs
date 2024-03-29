@@ -1,3 +1,4 @@
+using System.Net.WebSockets;
 using static GooberFactory.Configuration;
 using System.Security.Cryptography;
 using System.Text;
@@ -7,6 +8,7 @@ using DSharpPlus.SlashCommands;
 using GooberFactory.Attributes;
 using GooberFactory.Providers;
 using GooberFactory.WebAPI;
+using Humanizer;
 using Serilog;
 
 namespace GooberFactory;
@@ -15,6 +17,47 @@ namespace GooberFactory;
 /// All discord slash commands
 /// </summary>
 public class Commands : ApplicationCommandModule {
+    [MatchState(PteroSocket.ServerState.Running)]
+    [SlashCommand("evolution", "Prints current evolution level")]
+    public async Task Evolution(InteractionContext ctx) {
+        await ctx.DeferAsync();
+        var msg = await Program.Socket!.SendCommand("/evolution", true);
+        await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent(msg));
+    }
+    
+    [AdminOnly] [SlashCommand("reconnect", "Reconnect to Pterodactyl WebSockets (admin only)")]
+    public async Task Reconnect(InteractionContext ctx) {
+        await ctx.CreateResponseAsync("Reconnection is now in progress...");
+        Program.Socket?.Dispose(); await Program.InitSocket();
+    }
+    
+    [AdminOnly] [MatchState(PteroSocket.ServerState.Offline)]
+    [SlashCommand("rollback", "Rollbacks to an autosave (admin only)")]
+    public async Task Rollback(InteractionContext ctx,
+        [Option("filename", "Save filename")] 
+        [Autocomplete(typeof(SavesProvider))] string filename) {
+        var contents = await PterodactylAPI.GetFolderContents("/saves");
+        var file = contents.Files.FirstOrDefault(x => x.Attributes.Name == filename);
+        if (file == null) {
+            await ctx.CreateResponseAsync($"Save `{filename}` doesn't exist!");
+            return;
+        }
+
+        try {
+            var to = file.Attributes.ModifiedAt.Humanize();
+            await ctx.CreateResponseAsync($"Rolling back to {to}...");
+            try { await PterodactylAPI.Delete("/gamesave_old.zip"); } catch { /* Ignore */ }
+            await PterodactylAPI.Rename("/", "gamesave.zip", "gamesave_old.zip");
+            await PterodactylAPI.Rename("/saves", filename, "../gamesave.zip");
+            await ctx.EditResponseAsync(new DiscordWebhookBuilder()
+                .WithContent($"Successfully rolled back to {to}!"));
+        } catch (Exception e) {
+            await ctx.EditResponseAsync(new DiscordWebhookBuilder()
+                .WithContent("Caught an exception, rollback failed!"));
+            Log.Error("{0}", e);
+        }
+    }
+    
     [AdminOnly] [MatchState(PteroSocket.ServerState.Running)]
     [SlashCommand("restart", "Restarts the server (admin only)")]
     public async Task Restart(InteractionContext ctx) {
@@ -39,7 +82,7 @@ public class Commands : ApplicationCommandModule {
     [SlashCommand("ban", "Permanently ban a player (admin only)")]
     public async Task Ban(InteractionContext ctx,
         [Option("username", "Player's username")] 
-        [Autocomplete(typeof(UsernameProvider))]string username,
+        [Autocomplete(typeof(UsernameProvider))] string username,
         [Option("reason", "Reason for the ban")] string reason) {
         await Program.Socket!.SendCommand($"/ban {username} {reason}");
         await ctx.CreateResponseAsync($"{ctx.Member.Mention} banned `{username}` for `{reason}`!");
