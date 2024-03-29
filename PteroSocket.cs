@@ -126,10 +126,8 @@ public class PteroSocket : IDisposable {
         
         if (old == State) return;
         await Discord.UpdateStatus();
-        if (State == ServerState.Running) {
+        if (State == ServerState.Running)
             await SendCommand("/gfi-version");
-            await SendCommand("/gfi-list");
-        }
     }
     
     /// <summary>
@@ -269,6 +267,9 @@ public class PteroSocket : IDisposable {
                             $"I expected {IntegrationVersion}, but got {version} instead. Now bye, I'm commiting tactical suicide!");
                         Dispose();
                     }
+
+                    await SendCommand($"/gfi-print {Config.Messages.DiscordPrefix} {Config.Messages.GameReady}");
+                    await SendCommand("/gfi-list");
                     break;
                 }
             }

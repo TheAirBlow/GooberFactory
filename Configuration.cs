@@ -79,6 +79,7 @@ public class Configuration {
         
         // Chat messages
         public string GameMessage = "[color=#7289DA]<[color=#{0}]{1}[/color]>[/color] {2}";
+        public string GameReady = "[color=#3EBF24]Discord Relay is ready![/color]";
         public string DiscordPrefix = "[color=#7289DA][Discord][/color]";
         public string ReplyingTo = "Replying to [color=#{0}]{1}[/color]";
         public string Edited = "[color=#D3D3D3](edited)[/color]";
